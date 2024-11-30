@@ -10,10 +10,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Ensure QR directory exists
-const QR_DIR = 'qr-codes';
+// Use /tmp directory for Lambda environment
+const QR_DIR = '/tmp/qr-codes';
 if (!fs.existsSync(QR_DIR)) {
-    fs.mkdirSync(QR_DIR);
+    fs.mkdirSync(QR_DIR, { recursive: true });
 }
 
 const transporter = nodemailer.createTransport({
@@ -122,4 +122,4 @@ app.post("/api/send-email", async (req, res) => {
     }
 });
 
-app.listen(8000, () => console.log("✉️ Email server running on port 3000"));
+app.listen(8000, () => console.log("✉️ Email server running on port 8000"));
