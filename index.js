@@ -122,4 +122,4 @@ app.post("/api/send-email", async (req, res) => {
     }
 });
 
-app.listen(3000, () => console.log("✉️ Email server running on port 3000"));
+app.listen(8000, () => console.log("✉️ Email server running on port 3000"));
