@@ -4,18 +4,20 @@ const cors = require("cors");
 const QRCode = require('qrcode');
 const path = require('path');
 const fs = require('fs');
+const { ethers } = require("ethers");
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Use /tmp directory for Lambda environment
+// QR code directory setup
 const QR_DIR = '/tmp/qr-codes';
 if (!fs.existsSync(QR_DIR)) {
     fs.mkdirSync(QR_DIR, { recursive: true });
 }
 
+// Email transporter setup
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
@@ -26,6 +28,32 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+// Blockchain setup
+const contractABI = [
+    {
+        inputs: [
+            {
+                internalType: "bytes",
+                name: "inputProof",
+                type: "bytes",
+            },
+        ],
+        name: "postInputProof",
+        outputs: [],
+        stateMutability: "nonpayable",
+        type: "function",
+    },
+];
+
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const contract = new ethers.Contract(
+    process.env.CONTRACT_ADDRESS,
+    contractABI,
+    wallet
+);
+
+// Email sending endpoint
 app.post("/api/send-email", async (req, res) => {
     try {
         const { to, qrUrl = 'https://yourwebsite.com' } = req.body;
@@ -122,4 +150,38 @@ app.post("/api/send-email", async (req, res) => {
     }
 });
 
-app.listen(8000, () => console.log("✉️ Email server running on port 8000"));
+// Contract interaction endpoint
+app.post("/contract/interact", async (req, res) => {
+    try {
+        const { handle, inputProof } = req.body;
+        const txForPostingTheInputProof = await contract.postInputProof(
+            inputProof,
+            { gasLimit: 7000000 }
+        );
+        await txForPostingTheInputProof.wait();
+        
+        return res.json({
+            success: true,
+        });
+    } catch (error) {
+        console.error("Contract interaction error:", error);
+        res.status(500).json({
+            error: error.message,
+        });
+    }
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        error: "Something went wrong!",
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log("✉️ Email service initialized");
+    console.log("⛓️ Contract interaction service initialized");
+});
